@@ -4,7 +4,7 @@ from .deflections import get_deflection_function
 from .materials import Material
 
 # Constants
-epsilon_0 = 8.854e-12  # Permittivity of free space in F/m
+epsilon_0 = 8.85418782e-12  # Permittivity of free space in F/m
 
 def calculate_flexural_rigidity(young_mod, poisson_rat, thickness):
     """
@@ -14,7 +14,7 @@ def calculate_flexural_rigidity(young_mod, poisson_rat, thickness):
 
 def calculate_capacitance_circular(shape, boundary_condition, P, material_name, thickness, a, d0):
     """
-    Calculate the capacitance for a circular plate using the deflection functions.
+    Calculate the capacitance for a circular plate using the deflection functions, now with double integration.
     
     Parameters:
     - shape: 'circular'
@@ -39,14 +39,18 @@ def calculate_capacitance_circular(shape, boundary_condition, P, material_name, 
     # Get deflection function
     deflection_func = get_deflection_function(shape, boundary_condition, P, D, a)
     
-    # Define integrand for capacitance calculation
-    def integrand(r):
-        return (2 * np.pi * r) / (d0 - deflection_func(r))
-    
+    # Define integrand for capacitance calculation in polar coordinates
+    def integrand(r, theta):
+        return r / (d0 - deflection_func(r))
+
     try:
-        # Integrate from 0 to radius a
-        result = quad(integrand, 0, a)
-        return material.dielectric_K * epsilon_0 * result[0]
+        # Perform double integration over the plate area (in polar coordinates)
+        result, _ = dblquad(
+            integrand,
+            0, 2 * np.pi,  # theta limits from 0 to 2π
+            lambda theta: 0, lambda theta: a  # r limits from 0 to a
+        )
+        return material.dielectric_K * epsilon_0 * result
     except Exception as e:
         raise ValueError(f"Integration failed: {str(e)}")
 
